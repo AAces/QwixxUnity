@@ -30,6 +30,8 @@ public class Game : MonoBehaviour
     public Button bOne, bTwo, bThree, bFour;
     Button[] buttons;
     public GameObject canvasObj, t1, t2;
+    public GameObject[] whiteDice1, whiteDice2, redDice, yellowDice, greenDice, blueDice, borders;
+    GameObject[][] diceObj;
 
     // Start is called before the first frame update
     void Start()
@@ -109,29 +111,56 @@ public class Game : MonoBehaviour
             yield return new WaitForSeconds(0.001f);
         }
         canvasObj.SetActive(false);
-        showCards();
+        start();
     }
 
     void initGame()
     {
         cards = new Card[] { card1, card2, card3, card4 };
         buttons = new Button[] { bOne, bTwo, bThree, bFour };
+        diceObj = new GameObject[][] { whiteDice1, whiteDice2, redDice, yellowDice, greenDice, blueDice };
         activePlayer = 1;
         canvasObj.SetActive(true);
         hideCards();
+        hideDice();
+    }
+
+    void hideDice()
+    {
+        for(int i = 0; i < 6; i++)
+        {
+            for(int j = 0; j < 6; j++)
+            {
+                diceObj[i][j].SetActive(false);
+            }
+        }
     }
 
     void press(int p)
     {
         players = p;
-
         StartCoroutine(hideButtons(p));
-        Debug.Log("Starting game with " + p + " players! (not actually)");
+    }
+
+    void start()
+    {
+        showCards();
+        Debug.Log("Starting game with " + players + " players! (not actually)");
+        roll();
+    }
+
+    void refreshBorders()
+    {
+        foreach(GameObject o in borders)
+        {
+            o.SetActive(false);
+        }
+        borders[activePlayer - 1].SetActive(true);
     }
 
     void turn()
     {
-        roll();
+        refreshBorders();
         bool passed = false;
         int whiteSum = dice[0] + dice[1];
         List<int> pRed = new List<int>(), pYellow = new List<int>(), pGreen = new List<int>(), pBlue = new List<int>();
@@ -383,19 +412,23 @@ public class Game : MonoBehaviour
         white1 = Random.Range(1, 7);
         white2 = Random.Range(1, 7);
         dice = new int[] { white1, white2, red, yellow, green, blue };
+        StartCoroutine(printDice());
     }
 
-    void printDice()
+    private IEnumerator printDice()
     {
-        if (red == 0) return;
         for (int i = 0; i < 6; i++)
-        {
-            if (lockedRows.Contains(i - 2))
-            {
-                continue;
-            }
+        {    
             Debug.Log(diceNames[i] + dice[i]);
+            diceObj[i][dice[i] - 1].transform.localScale = new Vector3(0, 0, 0);
+            diceObj[i][dice[i] - 1].SetActive(true);
+            for (int j = 0; j < 10; j++)
+            {
+                diceObj[i][dice[i] - 1].transform.localScale += new Vector3(0.1f,0.1f,0.1f);
+                yield return new WaitForSeconds(0.025f);
+            }
         }
+
 
     }
 
