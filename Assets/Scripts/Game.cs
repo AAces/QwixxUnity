@@ -93,6 +93,18 @@ public class Game : MonoBehaviour
                 cards[c].markLock(r);
             }
         }
+        if (!activePlayerPressed)
+        {
+            ColorBlock cb = nextRoll.colors;
+            cb.normalColor = Color.red;
+            nextRoll.colors = cb;
+        }
+        else
+        {
+            ColorBlock cb = nextRoll.colors;
+            cb.normalColor = Color.green;
+            nextRoll.colors = cb;
+        }
     }
 
     void updatePenalties()
@@ -126,7 +138,7 @@ public class Game : MonoBehaviour
                     if (n == 12)
                     {
                         cards[c].getRows()[r].addMarkedNumber(13);
-                        lockedRows.Add(r);
+                        toBeLocked.Add(r);
                     }
                 }
                 else
@@ -134,7 +146,7 @@ public class Game : MonoBehaviour
                     if (n == 2)
                     {
                         cards[activePlayer - 1].getRows()[r].addMarkedNumber(1);
-                        lockedRows.Add(r);
+                        toBeLocked.Add(r);
                     }
                 }
                 updateCrossedNumbers(c);
@@ -220,8 +232,13 @@ public class Game : MonoBehaviour
             cards[activePlayer - 1].addPenalty();
             cards[activePlayer - 1].updatePenalties();
         }
+
         activePlayerPressed = false;
         activePlayerPressed2 = false;
+        ColorBlock cb = nextRoll.colors;
+        cb.normalColor = Color.red;
+        nextRoll.colors = cb;
+
         if (toBeLocked.Count > 0)
         {
             foreach (int i in toBeLocked)
@@ -442,8 +459,12 @@ public class Game : MonoBehaviour
             }
         }
         for (int i = 0; i < 6; i++)
-        {    
+        {
             Debug.Log(diceNames[i] + dice[i]);
+            if (lockedRows.Contains(i - 2))
+            {
+                continue;
+            }         
             diceObj[i][dice[i] - 1].transform.localScale = new Vector3(0, 0, 0);
             diceObj[i][dice[i] - 1].SetActive(true);
             for (int j = 0; j < 10; j++)
