@@ -1,50 +1,35 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Game : MonoBehaviour
 {
-    int red, blue, yellow, green, white1, white2, players, activePlayer;
+    int red, blue, yellow, green, white1, white2, players, activePlayer, whiteSum;
     int[] dice;
     string[] diceNames = new string[] { "White: ", "White: ", "Red: ", "Yellow: ", "Green: ", "Blue: " };
     public Card card1, card2, card3, card4;
     Card[] cards;
-    Dictionary<string, int> responseToInt = new Dictionary<string, int>()
-        {
-            { "R", 0 },
-            { "Y", 1 },
-            { "G", 2 },
-            { "B", 3 }
-        };
-    Dictionary<string, string> responseToString = new Dictionary<string, string>()
-        {
-            { "R", "Red" },
-            { "Y", "Yellow" },
-            { "G", "Green" },
-            { "B", "Blue" }
-        };
-    List<int> lockedRows = new List<int>();
-    public Button bOne, bTwo, bThree, bFour;
+    List<int> pRed = new List<int>(), pYellow = new List<int>(), pGreen = new List<int>(), pBlue = new List<int>();
+    HashSet<int> toBeLocked = new HashSet<int>(), lockedRows = new HashSet<int>();
+    public Button bOne, bTwo, bThree, bFour, nextRoll;
     Button[] buttons;
-    public GameObject canvasObj, t1, t2;
-    public GameObject[] whiteDice1, whiteDice2, redDice, yellowDice, greenDice, blueDice, borders;
+    public Button[] c1r1, c1r2, c1r3, c1r4, c2r1, c2r2, c2r3, c2r4, c3r1, c3r2, c3r3, c3r4, c4r1, c4r2, c4r3, c4r4;
+    Button[][] card1Buttons, card2Buttons, card3Buttons, card4Buttons;
+    Button[][][] allNumButtons;
+    public GameObject canvasObj, t1, t2, nextButtonCanvas;
+    public GameObject[] whiteDice1, whiteDice2, redDice, yellowDice, greenDice, blueDice, borders, scoreCards;
+    public Text[] scoreCard1Text, scoreCard2Text, scoreCard3Text, scoreCard4Text;
+    Text[][] scoreCardsText;
     GameObject[][] diceObj;
+    bool[] whitePressed = new bool[] { false, false, false, false };
+    List<int>[] lists;
+    bool activePlayerPressed = false, activePlayerPressed2 = false;
 
-    // Start is called before the first frame update
     void Start()
     {
         initGame();
         addListeners();
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 
     void addListeners()
@@ -53,6 +38,29 @@ public class Game : MonoBehaviour
         bTwo.onClick.AddListener(delegate { press(2); });
         bThree.onClick.AddListener(delegate { press(3); });
         bFour.onClick.AddListener(delegate { press(4); });
+        nextRoll.onClick.AddListener(delegate { handleNextPress(); });
+        for (int c = 0; c < 4; c++)
+        {
+            for (int r = 0; r < 4; r++)
+            {
+                for (int n = 2; n < 13; n++)
+                {
+                    int x = c;
+                    int y = r;
+                    int z = n;
+                    allNumButtons[x][y][z - 2].onClick.AddListener(delegate { handlePress(x, y, z); });
+                }
+            }
+        }
+        
+    }
+
+    void resetWhitePressed()
+    {
+        for(int i = 0; i<4; i++)
+        {
+            whitePressed[i] = false;
+        }
     }
 
     void hideCards()
@@ -63,11 +71,211 @@ public class Game : MonoBehaviour
         }
     }
 
+    void updateCrossedNumbers(int c)
+    {
+        for(int i = 0; i<4; i++)
+        {
+            int r = i;
+            for (int j = 2; j<13; j++)
+            {
+                int n = j;
+                if (cards[c].getRows()[r].getMarkedNumbers().Contains(n))
+                {
+                    allNumButtons[c][r][n-2].transform.GetChild(0).gameObject.SetActive(true);
+                } else
+                {
+                    allNumButtons[c][r][n-2].transform.GetChild(0).gameObject.SetActive(false);
+                }
+            }
+            
+            if (cards[c].getRows()[r].getMarkedNumbers().Contains(13) || cards[c].getRows()[r].getMarkedNumbers().Contains(1))
+            {
+                cards[c].markLock(r);
+            }
+        }
+    }
+
+    void updatePenalties()
+    {
+        foreach(Card c in cards)
+        {
+            c.updatePenalties();
+        }
+    }
+
+    void trySecondPress(int c, int r, int n)
+    {
+        if (r > 3)
+        {
+            Debug.Log("Somehow a button in row '" + (r + 1) + "' was pressed?");
+            return;
+        }
+        if (lists[r].Contains(n))
+        {
+            if (lockedRows.Contains(r))
+            {
+                Debug.Log("That row has been locked!");
+                return;
+            }
+            if (cards[c].getRows()[r].addMarkedNumber(n))
+            {
+                Debug.Log("The number " + n + " was marked off of row " + (r + 1) + " of card " + (c + 1));
+                activePlayerPressed = true;
+                if (cards[c].getRows()[r].getStartsSmall())
+                {
+                    if (n == 12)
+                    {
+                        cards[c].getRows()[r].addMarkedNumber(13);
+                        lockedRows.Add(r);
+                    }
+                }
+                else
+                {
+                    if (n == 2)
+                    {
+                        cards[activePlayer - 1].getRows()[r].addMarkedNumber(1);
+                        lockedRows.Add(r);
+                    }
+                }
+                updateCrossedNumbers(c);
+                activePlayerPressed2 = true;
+            }
+        } else
+        {
+            if (lists[r].Count > 1) 
+            {
+                Debug.Log("Cant mark off " + n + " from row " + (r + 1) + ", can only mark off " + lists[r][0] + " or " + lists[r][1]);
+            } else
+            {
+                Debug.Log("Cant mark off " + n + " from row " + (r + 1) + ", can only mark off " + lists[r][0]);
+            }
+
+        }
+    }
+
+    void handlePress(int card, int row, int num)
+    {
+        Debug.Log("Button pressed: Card " + (card + 1) + ", row " + (row + 1) + ", number " + num + ".");
+        bool active = card == activePlayer - 1;
+        if (lockedRows.Contains(row))
+        {
+            return;
+        }
+        if(active && activePlayerPressed2)
+        {
+            return;
+        }
+        
+        if (num == whiteSum)
+        {
+            if (!whitePressed[card])
+            {
+                if (active && activePlayerPressed)
+                {
+                    return;
+                }
+                if (cards[card].getRows()[row].addMarkedNumber(num))
+                {
+                    Debug.Log("The number " + whiteSum + " was marked off of row " + (row + 1) + " of card " + (card+1));
+                    whitePressed[card] = true;
+                    if (active) { activePlayerPressed = true; }
+                    if (cards[card].getRows()[row].getStartsSmall())
+                    {
+                        if (whiteSum == 12)
+                        {
+                            cards[card].getRows()[row].addMarkedNumber(13);
+                            toBeLocked.Add(row);
+                        }
+                    }
+                    else
+                    {
+                        if (whiteSum == 2)
+                        {
+                            cards[card].getRows()[row].addMarkedNumber(1);
+                            toBeLocked.Add(row);
+                        }
+                    }
+                    updateCrossedNumbers(card);
+                }
+            } else
+            {
+                if (active)
+                {
+                    trySecondPress(card, row, num);
+                }
+            }
+        } else
+        {
+            if (active)
+            {
+                trySecondPress(card, row, num);
+            }
+        }
+    }
+
+    void handleNextPress()
+    {
+        if (!activePlayerPressed)
+        {
+            cards[activePlayer - 1].addPenalty();
+            cards[activePlayer - 1].updatePenalties();
+        }
+        activePlayerPressed = false;
+        activePlayerPressed2 = false;
+        if (toBeLocked.Count > 0)
+        {
+            foreach (int i in toBeLocked)
+            {
+                lockedRows.Add(i);
+
+            }
+            if (lockedRows.Count > 1)
+            {
+                end(2);
+                return;
+            }
+        }
+        if (cards[activePlayer-1].getPenalties() > 3)
+        {
+            end(1);
+            return;
+        }
+        activePlayer++;
+        if (activePlayer > players)
+        {
+            activePlayer = 1;
+        }
+        refreshBorders();
+        resetWhitePressed();
+        roll();
+    }
+
     void showCards()
     {
         for(int i=0; i<players; i++)
         {
             cards[i].gameObject.SetActive(true);
+        }
+    }
+
+    void showScoreCards()
+    {
+        for (int i = 0; i < players; i++)
+        {
+            scoreCards[i].SetActive(true);
+        }
+    }
+
+    void updateScoreCards()
+    {
+        for (int i = 0; i < players; i++)
+        {
+            for(int j = 0; j < 4; j++)
+            {
+                scoreCardsText[i][j].text = cards[i].getRowScore(j).ToString();
+            }
+            scoreCardsText[i][4].text = cards[i].getPenaltyScore().ToString();
+            scoreCardsText[i][5].text = cards[i].getTotalScore().ToString();            
         }
     }
 
@@ -119,9 +327,23 @@ public class Game : MonoBehaviour
         cards = new Card[] { card1, card2, card3, card4 };
         buttons = new Button[] { bOne, bTwo, bThree, bFour };
         diceObj = new GameObject[][] { whiteDice1, whiteDice2, redDice, yellowDice, greenDice, blueDice };
+        scoreCardsText = new Text[][] { scoreCard1Text, scoreCard2Text, scoreCard3Text, scoreCard4Text };
+        card1Buttons = new Button[][] { c1r1, c1r2, c1r3, c1r4 };
+        card2Buttons = new Button[][] { c2r1, c2r2, c2r3, c2r4 };
+        card3Buttons = new Button[][] { c3r1, c3r2, c3r3, c3r4 };
+        card4Buttons = new Button[][] { c4r1, c4r2, c4r3, c4r4 };
+        allNumButtons = new Button[][][] { card1Buttons, card2Buttons, card3Buttons, card4Buttons };
         activePlayer = 1;
+        for(int i = 0; i<4; i++)
+        {
+            updateCrossedNumbers(i);
+            cards[i].hideLocks();
+        }
+        updatePenalties();
         canvasObj.SetActive(true);
+        nextButtonCanvas.SetActive(false);
         hideCards();
+        hideScoreCards();
         hideDice();
     }
 
@@ -136,6 +358,14 @@ public class Game : MonoBehaviour
         }
     }
 
+    void hideScoreCards()
+    {
+        foreach(GameObject o in scoreCards)
+        {
+            o.SetActive(false);
+        }
+    }
+
     void press(int p)
     {
         players = p;
@@ -145,7 +375,9 @@ public class Game : MonoBehaviour
     void start()
     {
         showCards();
-        Debug.Log("Starting game with " + players + " players! (not actually)");
+        refreshBorders();
+        nextButtonCanvas.SetActive(true);
+        Debug.Log("Starting game with " + players + " players!");
         roll();
     }
 
@@ -158,230 +390,8 @@ public class Game : MonoBehaviour
         borders[activePlayer - 1].SetActive(true);
     }
 
-    void turn()
+    void end(int how)
     {
-        refreshBorders();
-        bool passed = false;
-        int whiteSum = dice[0] + dice[1];
-        List<int> pRed = new List<int>(), pYellow = new List<int>(), pGreen = new List<int>(), pBlue = new List<int>();
-        pRed.Add(white1 + red);
-        pRed.Add(white2 + red);
-        pYellow.Add(white1 + yellow);
-        pYellow.Add(white2 + yellow);
-        pGreen.Add(white1 + green);
-        pGreen.Add(white2 + green);
-        pBlue.Add(white1 + blue);
-        pBlue.Add(white2 + blue);
-        List<int>[] lists = new List<int>[] { pRed, pYellow, pGreen, pBlue };
-        List<string> toBeLocked = new List<string>();
-
-        Regex rx = new Regex(@"^([GRBY])$");
-        //Console.Clear();
-        Debug.Log("It is player " + activePlayer + "'s turn, however, boards are marked in player order regardless of whose turn it is.");
-        for (int i = 0; i < players; i++)
-        {
-            cards[i].updateCard();
-            printDice();
-            bool yes = i + 1 == activePlayer;
-            if (yes)
-            {
-                Debug.Log("You are the active player. In addition to marking off the sum of the white dice, you will also have the option of marking off the sum of one white die and one colored die.");
-            }
-        Input:
-            Debug.Log("Player " + (i + 1) + ", where should the white dice sum (" + whiteSum + ") be marked off? Type 'R', 'Y', 'B', or 'G' to mark a row, or 'N' to not mark any row.");
-            string response = "";//fix
-            Debug.Log("You entered: " + response);
-            bool p = false;
-            if (response.Equals("N"))
-            {
-                if (!passed) { passed = yes; }
-                p = true;
-                Debug.Log("You chose not to mark off any row with the sum of the white dice.");
-            }
-            else if (rx.IsMatch(response))
-            {
-                if (lockedRows.Contains(responseToInt[response]))
-                {
-                    Debug.Log("That row has been locked!");
-                    goto Input;
-                }
-                if (cards[i].getRows()[responseToInt[response]].addMarkedNumber(whiteSum))
-                {
-                    Debug.Log("The number " + whiteSum + " was marked off of the " + responseToString[response].ToLower() + " row.");
-                    if (cards[i].getRows()[responseToInt[response]].getStartsSmall())
-                    {
-                        if (whiteSum == 12)
-                        {
-                            cards[i].getRows()[responseToInt[response]].addMarkedNumber(13);
-                            toBeLocked.Add(response);
-                        }
-                    }
-                    else
-                    {
-                        if (whiteSum == 2)
-                        {
-                            cards[i].getRows()[responseToInt[response]].addMarkedNumber(1);
-                            toBeLocked.Add(response);
-                        }
-                    }
-                }
-                else
-                {
-                    Debug.Log("The number " + whiteSum + " could not be marked off of the " + responseToString[response].ToLower() + " row.");
-                    goto Input;
-                }
-            }
-            else
-            {
-                Debug.Log("Invalid input!");
-                goto Input;
-            }
-            if (!p)
-            {
-                //Console.Clear();
-                Debug.Log("After any marks you made this turn, your board now looks like this:");
-                cards[i].updateCard();
-            }
-            Debug.Log("Press [Enter] to move to the next player.");
-            //while (Console.ReadKey().Key != ConsoleKey.Enter) { }
-            Thread.Sleep(100);
-            //Console.Clear();
-        }
-        if (toBeLocked.Count > 0)
-        {
-            foreach (string i in toBeLocked)
-            {
-                lockedRows.Add(responseToInt[i]);
-                Debug.Log("The " + responseToString[i].ToLower() + " row was locked!");
-            }
-            if (lockedRows.Count > 1)
-            {
-                end(2);
-                return;
-            }
-            Debug.Log("Press [Enter] to continue to player " + activePlayer + "'s second move.");
-            //while (Console.ReadKey().Key != ConsoleKey.Enter) { }
-            Thread.Sleep(100);
-        }
-        //Console.Clear();
-
-        bool p2 = false;
-        cards[activePlayer - 1].updateCard();
-        printDice();
-        Debug.Log("You (player " + activePlayer + ") may now mark off an additional number from one row by adding one colored die to one white die. Please enter the row and number you'd like to mark off (as in 'R3' or 'B11', etc) or enter 'N' to not mark any row.");
-        if (passed) { Debug.Log("Since you passed your last move, passing again would result in a penalty."); }
-    Input2:
-        string response2 = "";//fix
-        int l = response2.Length;
-        if (l < 4)
-        {
-            if (response2.Equals("N"))
-            {
-                p2 = true;
-                if (passed)
-                {
-                    cards[activePlayer - 1].addPenalty();
-                    int p = cards[activePlayer - 1].getPenalties();
-                    Debug.Log("Since you did not mark off any numbers this turn, you receive a penalty. You now have " + p + " penalties.");
-                    if (p > 3)
-                    {
-                        end(1);
-                        return;
-                    }
-                }
-                else
-                {
-                    Debug.Log("You chose not to mark off any row with the sum of a white die and a colored die.");
-                }
-            }
-            else if (l > 1)
-            {
-                string letter = response2.Substring(0, 1);
-                int num = 0;
-                if (!int.TryParse(response2.Substring(1, l - 1), out num))
-                {
-                    Debug.Log("Invalid input!");
-                    goto Input2;
-                }
-                if (!rx.IsMatch(letter) || num > 12 || num < 2)
-                {
-                    Debug.Log("Invalid input!");
-                    goto Input2;
-                }
-                else
-                {
-                    if (lists[responseToInt[letter]].Contains(num))
-                    {
-                        if (lockedRows.Contains(responseToInt[letter]))
-                        {
-                            Debug.Log("That row has been locked!");
-                            goto Input2;
-                        }
-                        if (cards[activePlayer - 1].getRows()[responseToInt[letter]].addMarkedNumber(num))
-                        {
-                            Debug.Log("The number " + num + " was marked off of the " + responseToString[letter].ToLower() + " row.");
-                            if (cards[activePlayer - 1].getRows()[responseToInt[letter]].getStartsSmall())
-                            {
-                                if (num == 12)
-                                {
-                                    cards[activePlayer - 1].getRows()[responseToInt[letter]].addMarkedNumber(13);
-                                    lockedRows.Add(responseToInt[letter]);
-                                }
-                            }
-                            else
-                            {
-                                if (num == 2)
-                                {
-                                    cards[activePlayer - 1].getRows()[responseToInt[letter]].addMarkedNumber(1);
-                                    lockedRows.Add(responseToInt[letter]);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Debug.Log("The number " + num + " could not be marked off of the " + responseToString[letter].ToLower() + " row.");
-                            goto Input2;
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("The " + responseToString[letter].ToLower() + " die (" + dice[responseToInt[letter]] + ") can not be added to either of the white dice (" + white1 + " or " + white2 + ") to make a " + num + ".");
-                        goto Input2;
-                    }
-                }
-            }
-        }
-        else
-        {
-            Debug.Log("Invalid input!");
-            goto Input2;
-        }
-        if (!p2)
-        {
-            //Console.Clear();
-            Debug.Log("After any marks you made this turn, your board now looks like this:");
-            cards[activePlayer - 1].updateCard();
-        }
-        Debug.Log("Press [Enter] to continue to the next turn.");
-        //while (Console.ReadKey().Key != ConsoleKey.Enter) { }
-        //Thread.Sleep(100);
-        //Console.Clear();
-        if (lockedRows.Count > 1)
-        {
-            end(2);
-            return;
-        }
-        activePlayer++;
-        if (activePlayer > players)
-        {
-            activePlayer = 1;
-        }
-        turn();
-    }
-
-    void end(int how)//1 = penalties, 2 = two rows locked
-    {
-        //Console.Clear();
         switch (how)
         {
             case 1:
@@ -393,14 +403,11 @@ public class Game : MonoBehaviour
             default:
                 break;
         }
-        int[] scores = new int[] { 0, 0, 0, 0 };
-        for (int i = 0; i < players; i++)
-        {
-            Debug.Log("Here is Player " + (i + 1) + "'s final board and score:");
-            cards[i].updateCard();
-            scores[i] = cards[i].printScore();
-            Debug.Log("-------------------------------------------------------------");
-        }
+        hideCards();
+        nextButtonCanvas.SetActive(false);
+        hideDice();
+        showScoreCards();
+        updateScoreCards();
     }
 
     void roll()
@@ -412,11 +419,28 @@ public class Game : MonoBehaviour
         white1 = Random.Range(1, 7);
         white2 = Random.Range(1, 7);
         dice = new int[] { white1, white2, red, yellow, green, blue };
+        whiteSum = white1 + white2;
+        pRed.Add(white1 + red);
+        pRed.Add(white2 + red);
+        pYellow.Add(white1 + yellow);
+        pYellow.Add(white2 + yellow);
+        pGreen.Add(white1 + green);
+        pGreen.Add(white2 + green);
+        pBlue.Add(white1 + blue);
+        pBlue.Add(white2 + blue);
+        lists = new List<int>[] { pRed, pYellow, pGreen, pBlue };
         StartCoroutine(printDice());
     }
-
+   
     private IEnumerator printDice()
     {
+        foreach(GameObject[] o in diceObj)
+        {
+            foreach(GameObject b in o)
+            {
+                b.SetActive(false);
+            }
+        }
         for (int i = 0; i < 6; i++)
         {    
             Debug.Log(diceNames[i] + dice[i]);
@@ -428,8 +452,5 @@ public class Game : MonoBehaviour
                 yield return new WaitForSeconds(0.025f);
             }
         }
-
-
     }
-
 }

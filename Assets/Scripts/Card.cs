@@ -1,66 +1,65 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class Card : MonoBehaviour
 {
 
-
-    Row[] rows;
+    Row[] rows = new Row[] { new Row(0, true), new Row(1, true), new Row(2, false), new Row(3, false) };
     public int player;
-    int penalties;
+    int penalties = 0;
+    public GameObject[] penaltiesObj, lockObj;
 
-    public Card(int p)
+    public Card()
     {
-        this.rows = new Row[] { new Row(0, true), new Row(1, true), new Row(2, false), new Row(3, false) };
-        player = p;
         penalties = 0;
     }
-    public int printScore()
+    public void markLock(int row)
     {
-        int score = calcScore();
-
-        return score;
+        lockObj[row].SetActive(true);
     }
-    int calcScore()
+    public void hideLocks()
+    {
+        foreach(GameObject o in lockObj)
+        {
+            o.SetActive(false);
+        }
+    }
+    public void updatePenalties()
+    {
+        foreach(GameObject o in penaltiesObj)
+        {
+            o.SetActive(false);
+        }
+        if (penalties > 0) {
+            for (int i = 0; i < penalties; i++)
+            {
+                penaltiesObj[i].SetActive(true);
+            }
+        }
+                
+    }
+    public int getTotalScore()
     {
         int score = 0;
         for (int i = 0; i < 4; i++)
         {
-            for (int j = 1; j < rows[i].getMarkedCount() + 1; j++)
-            {
-                score += j;
-            }
+            score += getRowScore(i);
         }
-        score -= penalties * 3;
+        score -= getPenaltyScore();
         return score;
     }
-    string scoreToPts(int s)
+    public int getRowScore(int i)
     {
-        return (s < 10 ? s.ToString() + "pts  " : (s < 100 ? s.ToString() + "pts " : s.ToString() + "pts"));
-    }
-    string xToPts(int r)
-    {
-        int pts = 0;
-        int x = rows[r].getMarkedCount();
-        for (int i = 1; i < x + 1; i++)
+        int score = 0;
+        for (int j = 1; j < rows[i].getMarkedCount() + 1; j++)
         {
-            pts += i;
+            score += j;
         }
-        return (pts < 10 ? pts.ToString() + "pts " : pts.ToString() + "pts");
+        return score;
     }
-    string pToPts()
+    public int getPenaltyScore()
     {
-        int pts = 5 * penalties;
-        return (pts < 10 ? pts.ToString() + "pts " : pts.ToString() + "pts");
-    }
-    string xToString(int r)
-    {
-        return (rows[r].getMarkedCount().ToString() + "x" + (rows[r].getMarkedCount() < 10 ? " " : ""));
-    }
-    public void updateCard()
-    {
-
+        return penalties * 5;
     }
     public Row[] getRows()
     {
@@ -77,15 +76,12 @@ public class Card : MonoBehaviour
 }
 public class Row
 {
-    int color;
     bool startsSmall;
-    List<int> markedNumbers;
+    List<int> markedNumbers = new List<int>();
 
     public Row(int c, bool s)
     {
-        this.color = c;
         this.startsSmall = s;
-        this.markedNumbers = new List<int>();
     }
 
     public bool addMarkedNumber(int n)
@@ -99,6 +95,11 @@ public class Row
             markedNumbers.Add(n);
             return true;
         }
+    }
+
+    public List<int> getMarkedNumbers()
+    {
+        return markedNumbers;
     }
 
     public bool getStartsSmall()
@@ -153,63 +154,5 @@ public class Row
                     return min;
             }
         }
-    }
-
-    public string printRow()
-    {
-        string r = "";
-        if (startsSmall)
-        {
-            for (int i = 2; i < 10; i++)
-            {
-                if (markedNumbers.Contains(i))
-                {
-                    r += " █ ";
-                }
-                else
-                {
-                    r += " " + i + " ";
-                }
-            }
-            for (int i = 10; i < 12; i++)
-            {
-                if (markedNumbers.Contains(i))
-                {
-                    r += " █ ";
-                }
-                else
-                {
-                    r += " " + i;
-                }
-            }
-            r += "   " + (markedNumbers.Contains(12) ? "█  X" : "12 O");
-        }
-        else
-        {
-            for (int i = 12; i > 9; i--)
-            {
-                if (markedNumbers.Contains(i))
-                {
-                    r += " █ ";
-                }
-                else
-                {
-                    r += " " + i;
-                }
-            }
-            for (int i = 9; i > 2; i--)
-            {
-                if (markedNumbers.Contains(i))
-                {
-                    r += " █ ";
-                }
-                else
-                {
-                    r += " " + i + " ";
-                }
-            }
-            r += "   " + (markedNumbers.Contains(2) ? "█  X" : "2  O");
-        }
-        return r;
     }
 }
