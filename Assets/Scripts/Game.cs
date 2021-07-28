@@ -298,42 +298,42 @@ public class Game : MonoBehaviour
 
     private IEnumerator hideButtons(int b)
     {
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.01f);
         for(int i=0; i<4; i++)
         {
             if (i == b-1) continue;
             for (int j = 0; j < 10; j++)
             {
                 buttons[i].gameObject.transform.localScale += new Vector3(0.01f, 0.01f, 0f);
-                yield return new WaitForSeconds(0.01f);
+                yield return new WaitForSeconds(0.001f);
             }
             for (int j = 0; j < 110; j++)
             {
                 buttons[i].gameObject.transform.localScale += new Vector3(-0.01f, -0.01f, 0f);
-                yield return new WaitForSeconds(0.001f);
+                yield return new WaitForSeconds(0.0001f);
             }
         }
         float f = buttons[b - 1].gameObject.transform.localPosition.x;
         for (int j=0; j<200; j++)
         {
             buttons[b - 1].gameObject.transform.localPosition += new Vector3((0-f)/200,0,0);
-            yield return new WaitForSeconds(0.00001f*Mathf.Abs(f));
+            yield return new WaitForSeconds(0.000001f*Mathf.Abs(f));
         }
         for (int j = 0; j < 10; j++)
         {
             buttons[b-1].gameObject.transform.localScale += new Vector3(0.01f, 0.01f, 0f);
-            yield return new WaitForSeconds(0.01f);
+            yield return new WaitForSeconds(0.001f);
         }
         for (int j = 0; j < 110; j++)
         {
             buttons[b-1].gameObject.transform.localScale += new Vector3(-0.01f, -0.01f, 0f);
-            yield return new WaitForSeconds(0.001f);
+            yield return new WaitForSeconds(0.0001f);
         }
         for (int j = 0; j < 100; j++)
         {
             t1.transform.localPosition += new Vector3(10f, 0f, 0f);
             t2.transform.localPosition += new Vector3(10f, 0f, 0f);
-            yield return new WaitForSeconds(0.001f);
+            yield return new WaitForSeconds(0.0001f);
         }
         canvasObj.SetActive(false);
         start();
@@ -470,7 +470,7 @@ public class Game : MonoBehaviour
             for (int j = 0; j < 10; j++)
             {
                 diceObj[i][dice[i] - 1].transform.localScale += new Vector3(0.1f,0.1f,0.1f);
-                yield return new WaitForSeconds(0.025f);
+                yield return new WaitForSeconds(0.012f);
             }
         }
     }
